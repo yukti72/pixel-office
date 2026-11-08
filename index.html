@@ -1,0 +1,737 @@
+<title>Pixel Office</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+Gujarati:wght@700&family=Noto+Sans+Telugu:wght@700&family=Noto+Sans+Devanagari:wght@700&family=Noto+Sans+Gurmukhi:wght@700&family=Noto+Sans+Malayalam:wght@700&display=swap">
+<style>
+  /* Layout: one wide office canvas on a dark floor-green ground, a thin control strip below it. */
+  :root {
+    --ground: #17211c;
+    --panel: #22332a;
+    --ink: #f3ead6;
+    --ink-dim: #a9b5a6;
+    --wood: #f0a35e;
+    --rose: #e98fa0;
+    --font-display: "Silkscreen", ui-monospace, "SF Mono", Menlo, monospace;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: auto; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding-block: 20px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1671px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
+  h1 { margin: 0; font: 700 22px/1.1 var(--font-display); letter-spacing: .04em; color: var(--wood); text-wrap: balance; }
+  .sub { margin: 0; color: var(--ink-dim); font-size: 13px; }
+  .stage { background: var(--panel); border-radius: 6px; padding: 10px; }
+  canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button {
+    font: 400 12px/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink); background: var(--panel); border: 1px solid #3b5246; border-radius: 4px;
+    padding: 10px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--wood); }
+  button[aria-pressed="true"] { background: var(--wood); color: #2a1a0a; border-color: var(--wood); }
+  button:focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+  .hint { color: var(--ink-dim); font-size: 12px; margin-left: auto; min-width: 0; }
+  /* ---- character file (modal) ---- */
+  :root {
+    --file-frame: #1d3b31; --file-frame-hi: #2f5a4a; --file-paper: #f8ebdd; --file-card: #f1c9c9; --file-card-edge: #d9a0a4;
+    --file-rose: #d9747d; --file-ink: #1d3b31; --file-gold: #f2a24f; --file-muted: #8d7b6f; --file-line: #e3b9b6;
+  }
+  .scrim[hidden] { display: none; }
+  .scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: rgba(10, 18, 14, 0.72); overflow-y: auto; }
+  .file { width: min(780px, 100%); margin: auto; background: var(--file-frame); border: 3px solid var(--file-frame);
+    box-shadow: 0 0 0 2px var(--file-frame-hi), 0 18px 50px rgba(0,0,0,.55); border-radius: 4px; }
+  .file-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .file-bar svg { flex: none; }
+  .file-title { margin: 0; flex: 1; min-width: 0; font: 700 clamp(15px, 3.4vw, 22px)/1 var(--font-display); letter-spacing: .08em; color: var(--file-gold); text-transform: uppercase; }
+  .file-x { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; background: var(--file-paper); border: 2px solid var(--file-gold); border-radius: 4px; color: var(--file-ink); }
+  .file-x:hover { background: #fff; }
+  .file-body { background: var(--file-paper); margin: 0 4px 4px; border-radius: 2px; padding: 18px;
+    display: grid; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); gap: 20px; color: var(--file-ink); }
+  .portrait { position: relative; background: var(--file-card); border: 2px solid var(--file-card-edge); border-radius: 4px; min-height: 420px;
+    display: flex; align-items: flex-end; justify-content: center; padding: 56px 12px 18px; }
+  .portrait canvas { image-rendering: pixelated; height: 320px; width: auto; max-width: 100%; }
+  .bubble { position: absolute; top: 14px; right: 10px; max-width: 70%; background: #fff; color: #1d2a24; border: 2px solid #3b2b25; border-radius: 14px;
+    padding: 6px 14px 8px; font: 700 clamp(18px, 3.4vw, 24px)/1.25 "Noto Sans Gujarati", "Noto Sans Telugu", "Noto Sans Gurmukhi", "Noto Sans Malayalam", "Noto Sans Devanagari", var(--font-body); }
+  .bubble::after { content: ""; position: absolute; left: 22px; bottom: -12px; width: 14px; height: 14px; background: #fff;
+    border-right: 2px solid #3b2b25; border-bottom: 2px solid #3b2b25; transform: rotate(45deg) skew(8deg, 8deg); }
+  .info { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .name { margin: 0; font: 700 clamp(30px, 6vw, 46px)/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+  .role { align-self: flex-start; margin: 0; padding: 6px 14px; background: #f3c4c4; border: 2px solid var(--file-card-edge); border-radius: 6px;
+    font: 700 clamp(12px, 2.6vw, 15px)/1.2 var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+  .sec { display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 10px; row-gap: 6px; padding-top: 14px; border-top: 2px dotted var(--file-line); }
+  .sec-icon { grid-row: 1 / span 2; width: 38px; height: 38px; display: grid; place-items: center; background: var(--file-rose); border-radius: 5px; color: #fff6e8; }
+  .sec-label { align-self: center; justify-self: start; margin: 0; padding: 4px 12px; background: var(--file-frame); color: var(--file-paper); border-radius: 6px;
+    font: 700 clamp(11px, 2.4vw, 14px)/1.2 var(--font-display); letter-spacing: .1em; text-transform: uppercase; }
+  .sec-text { grid-column: 2; margin: 0; padding: 10px 14px; border: 2px solid var(--file-line); border-radius: 6px; background: #fff7ef;
+    font: 400 clamp(15px, 3vw, 18px)/1.4 var(--font-body); }
+  .sec-text.empty { color: var(--file-muted); font-style: italic; }
+  .dot { padding: 0 .45em; color: var(--file-rose); }
+  @media (max-width: 620px) {
+    .file-body { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+    .portrait { min-height: 330px; }
+  }
+
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pixel Office</h1>
+    <p class="sub">Everyone works at their own desk, then wanders off for coffee, a chat or a sit on the sofa. Milo keeps everyone company.</p>
+  </header>
+  <div class="stage"><canvas id="c" width="1671" height="941" aria-label="Animated office scene with four people working and walking around"></canvas></div>
+  <div class="bar">
+    <button id="pause" type="button" aria-pressed="false">Pause</button>
+    <button id="map" type="button" aria-pressed="false">Walk map</button>
+    <span class="hint">Click a person to open their file. Click Milo to say hi.</span>
+  </div>
+</div>
+
+<div id="scrim" class="scrim" hidden>
+  <section class="file" role="dialog" aria-modal="true" aria-labelledby="f-name">
+    <div class="file-bar">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><g fill="#e98fa0"><circle cx="15" cy="7" r="5"/><circle cx="23" cy="13" r="5"/><circle cx="20" cy="22" r="5"/><circle cx="10" cy="22" r="5"/><circle cx="7" cy="13" r="5"/></g><circle cx="15" cy="15" r="4" fill="#f2a24f"/></svg>
+      <h2 class="file-title">Character File</h2>
+      <button id="f-close" class="file-x" type="button" aria-label="Close character file">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15" stroke="currentColor" stroke-width="3.2" stroke-linecap="square" fill="none"/></svg>
+      </button>
+    </div>
+    <div class="file-body">
+      <div class="portrait">
+        <div id="f-bubble" class="bubble"></div>
+        <canvas id="f-portrait" width="40" height="100" aria-hidden="true"></canvas>
+      </div>
+      <div class="info">
+        <h3 id="f-name" class="name"></h3>
+        <p id="f-role" class="role"></p>
+        <div class="sec">
+          <div class="sec-icon"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.7 5.7 21.4l1.5-7.1L1.8 9.4 9 8.6z" fill="#ffd978" stroke="#fff6e8" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
+          <h4 class="sec-label">Superpower</h4>
+          <p id="f-power" class="sec-text"></p>
+        </div>
+        <div class="sec">
+          <div class="sec-icon"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.6 4.6 0 0 1 8-3 4.6 4.6 0 0 1 8 3c0 5.8-8 11-8 11z" fill="#ffd978" stroke="#fff6e8" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
+          <h4 class="sec-label">Hobbies</h4>
+          <p id="f-hobbies" class="sec-text"></p>
+        </div>
+        <div class="sec">
+          <div class="sec-icon"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v13H10l-5 4v-4H3z" fill="#fff6e8" stroke="#fff6e8" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="10.5" r="1.4" fill="#d9747d"/><circle cx="12" cy="10.5" r="1.4" fill="#d9747d"/><circle cx="16" cy="10.5" r="1.4" fill="#d9747d"/></svg></div>
+          <h4 class="sec-label">Remarks</h4>
+          <p id="f-remarks" class="sec-text"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   EDIT HERE: add characters, move seats, rename people.
+   All coordinates are in the original background image (1774 x 887).
+------------------------------------------------------------------- */
+const CONFIG = {
+  characters: [
+    // Each character has a profile (shown in the character file when you click them) and sprite sheets: walk (6 frames), idle (6 frames: idle, smile, blink, look left, look right, hair touch) and a sitting pose.
+    { name: 'Curly', sprite: 'assets/curly.png', seat: 0,
+      profile: { name: 'Saloni', role: 'Brand Designer', superpower: 'Ready to redesign your brand from scratch', hobbies: ['Sketching', 'Gym'],
+                 remarks: "Give me 2 weeks and I'll redesign the complete brand identity of your product.", greeting: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ!' }, sheet: { walk: 'assets/curly_walk.png', idle: 'assets/curly_idle.png', sit: 'assets/curly_sit.png' } },
+    { name: 'Short', sprite: 'assets/short.png', seat: 1,
+      profile: { name: 'Swathi', role: 'Visual Designer', superpower: "She'll make engaging animations to keep users hooked", hobbies: ['Sketching', 'Traveling', 'Climbing trees'],
+                 remarks: 'Ready to create fun animations and also cool sketches of people around me.', greeting: 'ഹായ്!' }, sheet: { walk: 'assets/short_walk.png', idle: 'assets/short_idle.png', sit: 'assets/short_sit.png' } },
+    { name: 'Long',  sprite: 'assets/long.png',  seat: 2,
+      profile: { name: 'Nirali', role: 'Senior Product Designer', superpower: 'Ready to fight with PMs', hobbies: ['Swimming', 'Pottery'],
+                 remarks: 'Pixels by day, pottery by night, PM debates anytime.', greeting: 'હાય!' }, sheet: { walk: 'assets/long_walk.png',  idle: 'assets/long_idle.png',  sit: 'assets/long_sit.png' } },
+    { name: 'Wavy',  sprite: 'assets/wavy.png',  seat: 3,
+      profile: { name: 'Yukti', role: 'Product Designer', superpower: 'Creative and ready to problem solve', hobbies: ['Paint', 'Sketch', 'Anything creative'],
+                 remarks: 'Headphones in my ear, and ready to redesign the payment page again.', greeting: 'హాయ్!' }, sheet: { walk: 'assets/wavy_walk.png',  idle: 'assets/wavy_idle.png',  sit: 'assets/wavy_sit.png' } },
+  ],
+  seatedTop: 379,       // y of the top of the head while seated
+  sofaSeatY: 238,       // feet y of someone sitting on the sofa
+  sofaClipY: 233,       // the sofa front edge hides their lower body
+  sofaSitTop: 166,      // y of the top of the head while sitting on the sofa
+  seatClipY: 447,       // seated people are cut off here, so their hands rest on the desk edge
+  // Top row of desks. x = chair centre, monitors = monitor centre. The bottom row faces away from the camera, so it stays empty for now.
+  seats: [278, 490, 702, 922],
+  monitors: [275, 487, 698, 922],
+  chairTop: 404,        // y of the top of the chair when it is tucked in (only the backrest shows above the desk)
+  chairPush: 88,        // how far a chair rolls out when its owner stands up
+  sideStep: 72,         // people step out to the side of their chair, then walk off
+  seatApproachY: 392,   // where a person stands before sitting down
+  seatFeetY: 481,       // feet position while seated (the desk hides the lower body)
+  deskTopY: 441,        // the desk edge: seated sprites are clipped here
+  spriteHeight: 96,
+  walkSpeed: [95, 125],
+  workSeconds: [8, 22], // how long someone works before getting up
+  // Places to stand. Several slots per place so people do not overlap.
+  places: {
+    coffee:  { emoji: '\u2615',        weight: 4, dur: [5, 9],  spots: [[1050, 288], [992, 275], [1085, 300]] },
+    sofa:    { emoji: '\uD83D\uDE0C', weight: 3, dur: [8, 16], spots: [[250, 254, 262], [450, 254, 450]] },  // [stand x, stand y, seat x]: two seats on the sofa
+    shelf:   { emoji: '\uD83D\uDCDA', weight: 1, dur: [4, 8],  spots: [[135, 300], [135, 385]] },
+    lounge:  { emoji: '\uD83D\uDCAD', weight: 2, dur: [6, 12], spots: [[1425, 745], [1320, 610], [1320, 700]] },
+    meeting: { emoji: '\uD83D\uDCDD', weight: 2, dur: [6, 11], spots: [[1190, 322], [1552, 292], [1370, 354]] },
+    snack:   { emoji: '\uD83C\uDF4E', weight: 2, dur: [4, 7],  spots: [[860, 278], [930, 278]] },
+  },
+};
+
+/* ------------------------------------------------------------------ */
+const CROP = { x: 0, y: 0 };             // the background image is shown uncropped
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const CELL = 10, GW = 168, GH = 95;
+
+/* ---------- walkable map ---------- */
+// areas that can be walked on: [x1, y1, x2, y2]
+const ADD = [
+  [45, 250, 1100, 905],   // main floor, sofa corner and pantry front
+  [1100, 392, 1645, 905], // right side and lounge
+  [1090, 330, 1175, 400], // doorway into the meeting room
+  [1165, 30, 1650, 360],  // meeting room
+];
+// furniture that blocks walking
+const OBS = [
+  [150, 405, 1085, 750],  // desks and chairs
+  [280, 230, 395, 325],   // coffee table
+  [665, 218, 740, 290],   // pouf by the pantry door
+  [738, 205, 808, 338],   // pantry door
+  [30, 195, 92, 412],     // left bookshelf
+  [30, 555, 110, 830],    // left plants
+  [1005, 115, 1095, 258], // fridge and coffee machine
+  [1195, 140, 1530, 262], // meeting table
+  [1568, 85, 1650, 365],  // TV unit
+  [1365, 510, 1505, 665], // armchair
+  [1468, 650, 1556, 725], // pink pouf
+  [1498, 548, 1562, 636], // side table
+  [1548, 420, 1625, 556], // tall plant
+  [1583, 570, 1650, 800], // right shelf
+];
+const MARGIN = 6;
+const walk = new Uint8Array(GW * GH);
+for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+  const cx = gx * CELL + 5, cy = gy * CELL + 5;
+  const inside = ADD.some(r => cx >= r[0] && cx <= r[2] && cy >= r[1] && cy <= r[3]);
+  const blocked = OBS.some(r => cx >= r[0] - MARGIN && cx <= r[2] + MARGIN && cy >= r[1] - MARGIN && cy <= r[3] + MARGIN);
+  walk[gy * GW + gx] = inside && !blocked ? 1 : 0;
+}
+const isWalk = (px, py) => {
+  const gx = Math.floor(px / CELL), gy = Math.floor(py / CELL);
+  return gx >= 0 && gy >= 0 && gx < GW && gy < GH && walk[gy * GW + gx] === 1;
+};
+function nearestCell(px, py) {
+  const gx0 = Math.floor(px / CELL), gy0 = Math.floor(py / CELL);
+  if (isWalk(px, py)) return [gx0, gy0];
+  let best = null, bd = 1e9;
+  for (let r = 1; r < 40 && !best; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const gx = gx0 + dx, gy = gy0 + dy;
+      if (gx < 0 || gy < 0 || gx >= GW || gy >= GH || !walk[gy * GW + gx]) continue;
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = [gx, gy]; }
+    }
+  }
+  return best || [gx0, gy0];
+}
+function lineClear(a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const n = Math.ceil(Math.hypot(dx, dy) / 3);
+  for (let i = 0; i <= n; i++) if (!isWalk(a[0] + dx * i / n, a[1] + dy * i / n)) return false;
+  return true;
+}
+function findPath(sx, sy, tx, ty) {
+  const [sgx, sgy] = nearestCell(sx, sy), [tgx, tgy] = nearestCell(tx, ty);
+  const idx = (x, y) => y * GW + x;
+  const g = new Float32Array(GW * GH).fill(1e9), from = new Int32Array(GW * GH).fill(-1), closed = new Uint8Array(GW * GH);
+  const h = (x, y) => { const dx = Math.abs(x - tgx), dy = Math.abs(y - tgy); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
+  const open = [[h(sgx, sgy), sgx, sgy]];
+  g[idx(sgx, sgy)] = 0;
+  const push = n => { open.push(n); let i = open.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (open[p][0] <= open[i][0]) break; [open[p], open[i]] = [open[i], open[p]]; i = p; } };
+  const pop = () => { const top = open[0], last = open.pop(); if (open.length) { open[0] = last; let i = 0; for (;;) { let l = 2 * i + 1, r = l + 1, m = i; if (l < open.length && open[l][0] < open[m][0]) m = l; if (r < open.length && open[r][0] < open[m][0]) m = r; if (m === i) break; [open[m], open[i]] = [open[i], open[m]]; i = m; } } return top; };
+  let found = false;
+  while (open.length) {
+    const [, x, y] = pop(); const k = idx(x, y);
+    if (closed[k]) continue; closed[k] = 1;
+    if (x === tgx && y === tgy) { found = true; break; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH || !walk[idx(nx, ny)]) continue;
+      if (dx && dy && (!walk[idx(x + dx, y)] || !walk[idx(x, y + dy)])) continue;
+      const ng = g[k] + (dx && dy ? 1.414 : 1), nk = idx(nx, ny);
+      if (ng < g[nk]) { g[nk] = ng; from[nk] = k; push([ng + h(nx, ny), nx, ny]); }
+    }
+  }
+  if (!found) return [[tx, ty]];
+  const cells = [];
+  for (let k = idx(tgx, tgy); k !== -1; k = from[k]) cells.push([(k % GW) * CELL + 5, Math.floor(k / GW) * CELL + 5]);
+  cells.reverse();
+  const pts = [[sx, sy], ...cells.slice(1)];
+  pts[pts.length - 1] = [tx, ty];
+  // pull the string tight
+  const out = []; let i = 0;
+  while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !lineClear(pts[i], pts[j])) j--; out.push(pts[j]); i = j; }
+  return out;
+}
+
+/* ---------- people ---------- */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const SEAT_Y = CONFIG.seatFeetY, APP_Y = CONFIG.seatApproachY, DESK_Y = CONFIG.deskTopY;
+const spots = {};
+for (const [name, p] of Object.entries(CONFIG.places)) spots[name] = p.spots.map(s => ({ x: s[0], y: s[1], sitX: s[2], by: null }));
+const people = [];
+
+class Person {
+  constructor(c, img, sheet) {
+    this.name = c.name; this.img = img; this.seat = c.seat; this.sheet = sheet || null; this.profile = c.profile || {};
+    this.phase = rnd(0, 9);
+    this.side = this.seat % 2 === 0 ? 1 : -1;  // which side of the chair they step out to
+    this.chairOff = 0; this.leaving = false; this.entering = false;
+    this.cup = false;      // holding a coffee
+    this.deskCup = 0;      // seconds the coffee stays on the desk after sitting down
+    this.brew = 0;         // seconds spent at the coffee machine
+    this.sofaP = 0;        // 0 standing in front of the sofa, 1 sitting on it
+    this.sx = CONFIG.seats[c.seat];
+    this.speed = rnd(...CONFIG.walkSpeed);
+    this.x = this.sx; this.y = SEAT_Y; this.face = 1;
+    this.state = 'seated'; this.t = rnd(2, 14); this.clock = rnd(0, 10);
+    this.path = []; this.stops = []; this.stop = null; this.p = 0; this.emote = null;
+    this.dh = CONFIG.spriteHeight; this.dw = img.width * (this.dh / img.height);
+    if (this.sheet) { this.dw = this.sheet.walk.width / this.sheet.walkFrames; this.dh = this.sheet.walk.height; }
+  }
+  // Which idle frame to show: 0 idle, 1 smile, 2 blink, 3 look left, 4 look right, 5 hair touch
+  idleFrame() {
+    const t = (this.clock + this.phase) % 9;
+    if ((t > 2.0 && t < 2.15) || (t > 5.2 && t < 5.35)) return 2;
+    if (t > 3.0 && t < 4.2) return 3;
+    if (t > 4.6 && t < 5.0) return 1;
+    if (t > 6.5 && t < 7.6) return 4;
+    return 0;
+  }
+  planTrip() {
+    const names = Object.keys(CONFIG.places);
+    const stops = [];
+    const n = Math.random() < 0.3 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const visit = Math.random() < 0.22 ? this.chatStop() : null;
+      if (visit) { stops.push(visit); continue; }
+      const total = names.reduce((s, k) => s + CONFIG.places[k].weight, 0);
+      let r = Math.random() * total, chosen = names[0];
+      for (const k of names) { r -= CONFIG.places[k].weight; if (r <= 0) { chosen = k; break; } }
+      const free = spots[chosen].filter(s => !s.by);
+      if (!free.length) continue;
+      const spot = pick(free); spot.by = this;
+      stops.push({ x: spot.x, y: spot.y, spot, sofa: spot.sitX != null, sitX: spot.sitX, kind: chosen, emote: CONFIG.places[chosen].emoji, dur: rnd(...CONFIG.places[chosen].dur) });
+    }
+    return stops;
+  }
+  chatStop() {
+    const mates = people.filter(o => o !== this && o.state === 'seated');
+    if (!mates.length) return null;
+    const m = pick(mates);
+    return { x: m.sx + 32, y: APP_Y - 4, spot: null, emote: '💬', dur: rnd(4, 8) };
+  }
+  goTo(x, y) { this.path = findPath(this.x, this.y, x, y); }
+  nextStop() {
+    if (this.stop && this.stop.spot) this.stop.spot.by = null;
+    this.emote = null;
+    this.stop = this.stops.shift() || null;
+    if (this.stop) { this.goTo(this.stop.x, this.stop.y); this.state = 'walking'; this.home = false; }
+    else { this.goTo(this.sx + this.side * CONFIG.sideStep, APP_Y); this.state = 'walking'; this.home = true; }
+  }
+  update(dt) {
+    this.clock += dt;
+    if (this.state === 'seated') {
+      this.t -= dt;
+      if (this.t <= 0) { this.stops = this.planTrip(); this.state = 'standing'; this.p = 0; }
+    } else if (this.state === 'standing') {
+      // push the chair back and stand up behind the desk edge
+      this.p += dt / 0.9;
+      const e = ease(Math.min(this.p, 1));
+      this.y = SEAT_Y + (DESK_Y - SEAT_Y) * e;
+      this.chairOff = CONFIG.chairPush * e;
+      if (this.p >= 1) {
+        this.y = DESK_Y; this.state = 'walking'; this.leaving = true; this.home = false;
+        const sxo = this.sx + this.side * CONFIG.sideStep;
+        this.path = [[sxo, DESK_Y - 4], [sxo, APP_Y]];
+      }
+    } else if (this.state === 'walking') {
+      let left = this.speed * dt;
+      // slow down if someone is right in front
+      for (const o of people) if (o !== this && o.state !== 'seated' && Math.hypot(o.x - this.x, o.y - this.y) < 26) left *= 0.55;
+      while (left > 0 && this.path.length) {
+        const [tx, ty] = this.path[0];
+        const d = Math.hypot(tx - this.x, ty - this.y);
+        if (d <= left) { this.x = tx; this.y = ty; left -= d; this.path.shift(); }
+        else { const ux = (tx - this.x) / d, uy = (ty - this.y) / d; this.x += ux * left; this.y += uy * left; if (Math.abs(ux) > 0.25) this.face = ux < 0 ? -1 : 1; left = 0; }
+      }
+      if (!this.path.length) {
+        if (this.leaving) { this.leaving = false; this.nextStop(); }
+        else if (this.entering) { this.entering = false; this.state = 'sitting'; this.p = 0; this.x = this.sx; this.y = DESK_Y; this.face = 1; }
+        else if (this.home) { this.entering = true; const sxo = this.sx + this.side * CONFIG.sideStep; this.path = [[sxo, DESK_Y - 4], [this.sx, DESK_Y]]; }
+        else { this.state = 'idle'; this.t = this.stop.dur; this.emote = this.stop.emote; this.sofaP = 0; }
+      }
+    } else if (this.state === 'idle') {
+      this.t -= dt;
+      if (this.stop && this.stop.kind === 'coffee' && !this.cup) {
+        this.brew += dt;
+        if (this.brew > 2.2) { this.cup = true; this.deskCup = 0; this.emote = '😋'; }
+      }
+      if (this.stop && this.stop.kind === 'coffee' && !this.cup && this.t < 2.4) this.t = 2.4; // wait for the cup
+      if (this.stop && this.stop.sofa) { this.sofaP = Math.min(1, this.sofaP + dt / 0.5); this.placeOnSofa(); }
+      if (this.t <= 0) { this.brew = 0; if (this.stop && this.stop.sofa) this.state = 'sofaUp'; else this.nextStop(); }
+    } else if (this.state === 'sofaUp') {
+      this.sofaP -= dt / 0.5; this.placeOnSofa();
+      if (this.sofaP <= 0) { this.sofaP = 0; this.x = this.stop.x; this.y = this.stop.y; this.nextStop(); }
+    } else if (this.state === 'sitting') {
+      this.p += dt / 0.9;
+      const e = ease(Math.min(this.p, 1));
+      this.y = DESK_Y + (SEAT_Y - DESK_Y) * e;
+      this.chairOff = CONFIG.chairPush * (1 - e);
+      if (this.p >= 1) {
+        this.y = SEAT_Y; this.chairOff = 0; this.state = 'seated'; this.t = rnd(...CONFIG.workSeconds);
+        if (this.cup) { this.cup = false; this.deskCup = this.t + 10; } // set the coffee down on the desk
+      }
+    }
+    if (this.state === 'seated' && this.deskCup > 0) {
+      this.deskCup -= dt;
+    }
+  }
+  placeOnSofa() {
+    const e = ease(Math.max(0, this.sofaP)), st = this.stop;
+    this.x = st.x + (st.sitX - st.x) * e; this.y = st.y + (CONFIG.sofaSeatY - st.y) * e; this.face = 1;
+  }
+  get onSofa() { return !!(this.stop && this.stop.sofa && (this.state === 'idle' || this.state === 'sofaUp') && this.sofaP >= 0.6); }
+  get atDesk() { return this.state === 'seated' || this.state === 'sitting' || this.state === 'standing'; }
+  draw() {
+    const { dw, dh } = this;
+    if (this.onSofa && this.sheet) {          // sitting on the sofa: head to waist, the sofa front hides the rest
+      const sit = this.sheet.sit, bobS = Math.sin(this.clock * 2.2) * 0.6;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 2000, CONFIG.sofaClipY); ctx.clip();
+      ctx.fillStyle = 'rgba(30,20,10,0.18)'; ctx.beginPath(); ctx.ellipse(this.x, CONFIG.sofaClipY - 2, dw * 0.45, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(sit, Math.round(this.x - sit.width / 2), CONFIG.sofaSitTop + Math.round(bobS));
+      ctx.restore();
+      if (this.emote) this.drawBubble();
+      return;
+    }
+    ctx.save();
+    if (this.atDesk) { ctx.beginPath(); ctx.rect(0, 0, 2000, this.state === 'seated' ? CONFIG.seatClipY : CONFIG.deskTopY); ctx.clip(); }
+    else {
+      ctx.fillStyle = 'rgba(30,20,10,0.22)';
+      ctx.beginPath(); ctx.ellipse(this.x, this.y + 1, dw * 0.42, 6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    let bob = 0, lean = 0;
+    if (this.state === 'walking') {
+      const ph = this.clock * 11;
+      bob = -Math.abs(Math.sin(ph)) * 4; lean = Math.sin(ph) * 0.045 + this.face * 0.03;
+    } else if (this.state === 'seated') {
+      bob = Math.sin(this.clock * 2.2) * 0.8 + (Math.sin(this.clock * 9) > 0.6 ? -1 : 0); // breathing + typing taps
+    } else if (this.state === 'idle') {
+      bob = Math.sin(this.clock * 2.4) * 1.2;
+    }
+    if (this.sheet) {
+      // sprite-sheet character: real walk and idle frames, no flipping or tilting
+      const sh = this.sheet, walking = this.state === 'walking';
+      if (this.state === 'seated') {
+        const bobS = Math.sin(this.clock * 2.2) * 0.6 + (Math.sin(this.clock * 9) > 0.6 ? 1 : 0);   // breathing and typing
+        ctx.drawImage(sh.sit, Math.round(this.x - sh.sit.width / 2), CONFIG.seatedTop + Math.round(bobS));
+        ctx.restore();
+        if (this.emote) this.drawBubble();
+        return;
+      }
+      const strip = walking ? sh.walk : sh.idle, n = walking ? sh.walkFrames : sh.idleFrames;
+      const f = walking ? Math.floor(this.clock * 9) % n : this.idleFrame();
+      const fw = strip.width / n, fh = strip.height;
+      bob = walking ? -Math.abs(Math.sin(this.clock * 9 * Math.PI / 6)) * 1.5 : 0;
+      ctx.drawImage(strip, f * fw, 0, fw, fh, Math.round(this.x - fw / 2), Math.round(this.y + bob - fh), fw, fh);
+      ctx.restore();
+    } else {
+      ctx.translate(this.x, this.y + bob);
+      ctx.rotate(lean);
+      ctx.scale(this.face, 1);
+      ctx.drawImage(this.img, -dw / 2, -dh, dw, dh);
+      ctx.restore();
+    }
+    if (this.cup && !this.atDesk) drawCup(this.x + 7, this.y - 34 + (this.state === 'walking' ? -Math.abs(Math.sin(this.clock * 9 * Math.PI / 6)) * 1.5 : 0), this.clock);
+    if (this.emote) this.drawBubble();
+  }
+  drawBubble() {
+    const bx = this.x, by = this.y - this.dh - 12 + Math.sin(this.clock * 3) * 1.5;
+    ctx.save();
+    ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#5a3b22'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx - 17, by - 30, 34, 28, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - 5, by - 3); ctx.lineTo(bx, by + 5); ctx.lineTo(bx + 5, by - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fffaf0'; ctx.fillRect(bx - 6, by - 4, 12, 3);
+    ctx.font = '19px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(this.emote, bx, by - 15);
+    ctx.restore();
+  }
+}
+
+/* ---------- Milo ---------- */
+// Milo's sprite sheet: walk = 6 side-view frames facing right; idle = sit, play bow, jump, roll, look up, tail wag.
+class Dog {
+  constructor(walk, idle) {
+    this.name = 'Milo'; this.walkImg = walk; this.idleImg = idle; this.atDesk = false;
+    this.wcw = walk.width / 6; this.wch = walk.height; this.icw = idle.width / 6; this.ich = idle.height;
+    this.dw = this.icw; this.dh = this.ich;
+    this.x = 1240; this.y = 640; this.face = 1; this.clock = 0;
+    this.state = 'sit'; this.t = 2; this.path = []; this.speed = 135; this.emote = null; this.playT = 0;
+  }
+  pickTarget() {
+    const r = Math.random();
+    const standing = people.filter(o => o.state !== 'seated' && o.state !== 'standing' && o.state !== 'sitting');
+    let tx, ty;
+    if (r < 0.4 && standing.length) {              // run up to someone who is out and about
+      const o = pick(standing); tx = o.x + pick([-1, 1]) * rnd(34, 56); ty = o.y + rnd(-4, 8);
+    } else if (r < 0.65) {                        // visit someone working
+      const o = pick(people); tx = o.sx + pick([-1, 1]) * rnd(80, 100); ty = APP_Y - rnd(0, 6);
+    } else {                                      // wander somewhere in the open
+      tx = rnd(130, 1580); ty = rnd(300, 880);
+    }
+    for (let i = 0; i < 30 && !isWalk(tx, ty); i++) { tx = rnd(130, 1580); ty = rnd(300, 880); }
+    this.path = findPath(this.x, this.y, tx, ty);
+    this.state = 'run'; this.emote = null;
+  }
+  excite(sec) { this.state = 'play'; this.t = sec; this.playT = 0; this.emote = pick(['\u2764\uFE0F', '\uD83C\uDFBE', '\uD83D\uDC3E']); this.path = []; }
+  update(dt) {
+    this.clock += dt;
+    if (this.state === 'run') {
+      let left = this.speed * dt;
+      while (left > 0 && this.path.length) {
+        const [tx, ty] = this.path[0], d = Math.hypot(tx - this.x, ty - this.y);
+        if (d <= left) { this.x = tx; this.y = ty; left -= d; this.path.shift(); }
+        else { const ux = (tx - this.x) / d, uy = (ty - this.y) / d; this.x += ux * left; this.y += uy * left; if (Math.abs(ux) > 0.2) this.face = ux < 0 ? -1 : 1; left = 0; }
+      }
+      if (!this.path.length) {
+        const r = Math.random();
+        if (r < 0.45) this.excite(rnd(3, 5));
+        else { this.state = 'sit'; this.t = rnd(2.5, 6); this.emote = r < 0.6 ? '\uD83D\uDE0B' : null; }
+      }
+    } else {
+      this.t -= dt; if (this.state === 'play') this.playT += dt;
+      if (this.t <= 0) this.pickTarget();
+    }
+  }
+  draw() {
+    const t = this.clock;
+    let img, cw, ch, f, lift = 0;
+    if (this.state === 'run') {
+      img = this.walkImg; cw = this.wcw; ch = this.wch; f = Math.floor(t * 13) % 6;
+      lift = Math.abs(Math.sin(t * 13 * Math.PI / 6)) * 1.5;
+    } else if (this.state === 'play') {            // bow, jump, bow, roll, wag
+      const seq = [1, 2, 1, 3, 5, 2, 1];
+      f = seq[Math.floor(this.playT / 0.7) % seq.length];
+      img = this.idleImg; cw = this.icw; ch = this.ich;
+      if (f === 2) lift = Math.abs(Math.sin((this.playT % 0.7) / 0.7 * Math.PI)) * 14;
+      if (f === 5) f = Math.floor(t * 6) % 2 ? 5 : 0;   // tail wag
+    } else {                                       // sitting: mostly idle, now and then looks up or wags
+      const c = (t + this.x * 0.01) % 7;
+      f = c > 4.6 && c < 5.8 ? 4 : (c > 1.5 && c < 2.8 ? (Math.floor(t * 6) % 2 ? 5 : 0) : 0);
+      img = this.idleImg; cw = this.icw; ch = this.ich;
+    }
+    this.dw = cw * 0.8; this.dh = ch * (f === 3 ? 0.6 : 1);
+    ctx.save();
+    ctx.fillStyle = 'rgba(30,20,10,0.22)';
+    const sw = cw * 0.38 * (1 - lift / 50);
+    ctx.beginPath(); ctx.ellipse(this.x, this.y + 1, sw, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(Math.round(this.x), Math.round(this.y - lift));
+    ctx.scale(this.face, 1);
+    ctx.drawImage(img, f * cw, 0, cw, ch, -cw / 2, -ch, cw, ch);   // sheet faces right
+    ctx.restore();
+    if (this.emote) this.drawBubble();
+  }
+  drawBubble() {
+    const bx = this.x, by = this.y - this.dh - 8 + Math.sin(this.clock * 3) * 1.5;
+    ctx.save();
+    ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#5a3b22'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx - 17, by - 30, 34, 28, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - 5, by - 3); ctx.lineTo(bx, by + 5); ctx.lineTo(bx + 5, by - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fffaf0'; ctx.fillRect(bx - 6, by - 4, 12, 3);
+    ctx.font = '19px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(this.emote, bx, by - 15);
+    ctx.restore();
+  }
+}
+let dog = null, chairFull = null;
+
+/* ---------- coffee cups ---------- */
+function drawCup(x, y, t) {
+  // x, y = top-left of the mug; drawn on a 2px grid so it matches the pixel look
+  const u = 2;
+  x = Math.round(x / u) * u; y = Math.round(y / u) * u;
+  const R = (cx, cy, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x + cx * u, y + cy * u, w * u, h * u); };
+  for (let i = 0; i < 2; i++) {                       // steam
+    const k = (t * 1.2 + i * 0.5) % 1;
+    ctx.globalAlpha = 0.85 * (1 - k);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x + (1 + i * 2) * u + Math.round(Math.sin(t * 3 + i * 2)) * u, y - 3 * u - Math.round(k * 5) * u, u, 2 * u);
+  }
+  ctx.globalAlpha = 1;
+  R(-0.5, -0.5, 6, 6, '#3b2314');       // outline
+  R(5.5, 1, 2, 3, '#3b2314');           // handle outline
+  R(6, 1.5, 1, 2, '#fffaf0');
+  R(0, 0, 5, 5, '#fffaf0');             // mug
+  R(0, 0, 5, 2, '#7a4a28');             // coffee
+  R(0, 4, 5, 1, '#d9cdb8');             // shade
+}
+function drawDeskCups(t) {
+  for (const p of people) if (p.deskCup > 0 && p.atDesk) drawCup(CONFIG.monitors[p.seat] + 44, 497, t);
+}
+
+/* ---------- monitors: scrolling code on screens of occupied desks ---------- */
+const CODE = ['#7fd6a3', '#7cc4f2', '#f2c879', '#e98fa0'];
+function drawScreens(t) {
+  for (const p of people) {
+    if (p.state !== 'seated') continue;
+    const x = CONFIG.monitors[p.seat] - 38, y = 451, w = 76, h = 32;
+    ctx.fillStyle = '#0d2230'; ctx.fillRect(x, y, w, h);
+    for (let k = 0; k < 5; k++) {
+      const seed = Math.floor(t * 1.6 + k * 1.7 + p.seat * 3);
+      const len = 10 + ((Math.sin(seed * 12.9898 + k) * 43758.5453) % 1 + 1) % 1 * (w - 26);
+      const indent = k % 3 === 1 ? 8 : 0;
+      ctx.fillStyle = CODE[(k + p.seat) % CODE.length];
+      ctx.fillRect(x + 4 + indent, y + 4 + k * 5.4, Math.min(len, w - 10 - indent), 2.6);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(x, y, w, 4);
+  }
+}
+
+/* ---------- setup ---------- */
+const load = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not load ' + src)); i.src = src; });
+let bg = null, paused = false, showMap = false, hover = null;
+
+const loadSheet = async s => s ? { walkFrames: 6, idleFrames: 6, walk: await load(s.walk), idle: await load(s.idle), sit: await load(s.sit) } : null;
+Promise.all([load('assets/office.png'), load('assets/milo_walk.png'), load('assets/milo_idle.png'), load('assets/chair_full.png'), ...CONFIG.characters.map(c => load(c.sprite)), ...CONFIG.characters.map(c => loadSheet(c.sheet))]).then(([bgImg, miloWalk, miloIdle, chairImg, ...rest]) => {
+  bg = bgImg;
+  chairFull = chairImg;
+  dog = new Dog(miloWalk, miloIdle);
+  const n = CONFIG.characters.length;
+  CONFIG.characters.forEach((c, i) => people.push(new Person(c, rest[i], rest[n + i])));
+  // start with a bit of variety: one person is already about to leave
+  if (people[1]) people[1].t = 1.2;
+  last = performance.now(); requestAnimationFrame(frame);
+}).catch(err => {
+  ctx.fillStyle = '#e98fa0'; ctx.font = '20px sans-serif'; ctx.fillText(err.message, 24, 40);
+});
+
+let last = 0, time = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!paused) { time += dt; people.forEach(p => p.update(dt)); if (dog) dog.update(dt); }
+  render();
+  requestAnimationFrame(frame);
+}
+function render() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.save();
+  ctx.translate(-CROP.x, -CROP.y);
+  ctx.drawImage(bg, CROP.x, CROP.y);
+  drawScreens(time);
+  drawDeskCups(time);
+  // chairs: the full chair rolls out from under the desk edge (the desk hides whatever is tucked under it)
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 2000, CONFIG.deskTopY + 1); ctx.clip();
+  for (const q of people) ctx.drawImage(chairFull, Math.round(q.sx - chairFull.width / 2), CONFIG.chairTop - Math.round(q.chairOff));
+  ctx.restore();
+  if (showMap) drawMap();
+  [...people, dog].sort((a, b) => a.y - b.y).forEach(p => p.draw());
+  if (hover) {
+    ctx.font = '700 15px "Silkscreen", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(hover.name).width + 18, hx = hover.x, hy = Math.max(hover.y - hover.dh - 26, CROP.y + 14);
+    ctx.fillStyle = 'rgba(23,33,28,0.92)'; ctx.beginPath(); ctx.roundRect(hx - w / 2, hy - 12, w, 24, 4); ctx.fill();
+    ctx.fillStyle = '#f3ead6'; ctx.fillText(hover.name, hx, hy + 1);
+  }
+  ctx.restore();
+}
+function drawMap() {
+  ctx.fillStyle = 'rgba(80,220,120,0.28)';
+  for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) if (walk[gy * GW + gx]) ctx.fillRect(gx * CELL, gy * CELL, CELL, CELL);
+  ctx.fillStyle = '#ff5a8a';
+  CONFIG.seats.forEach(x => { ctx.beginPath(); ctx.arc(x, APP_Y, 5, 0, 7); ctx.fill(); });
+  ctx.fillStyle = '#ffd34d';
+  Object.values(spots).forEach(list => list.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, 7); ctx.fill(); }));
+}
+
+/* ---------- controls ---------- */
+const pauseBtn = document.getElementById('pause'), mapBtn = document.getElementById('map');
+pauseBtn.addEventListener('click', () => { paused = !paused; pauseBtn.setAttribute('aria-pressed', paused); pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
+mapBtn.addEventListener('click', () => { showMap = !showMap; mapBtn.setAttribute('aria-pressed', showMap); });
+function hitAt(e) {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (cv.width / r.width) + CROP.x, y = (e.clientY - r.top) * (cv.height / r.height) + CROP.y;
+  const hits = [...people, dog].filter(p => {
+    const bottom = p.atDesk ? CONFIG.deskTopY : p.y;
+    return Math.abs(x - p.x) < p.dw / 2 + 6 && y > p.y - p.dh && y < bottom + 4;
+  });
+  return hits.sort((a, b) => b.y - a.y)[0] || null;
+}
+cv.addEventListener('pointermove', e => { hover = hitAt(e); cv.style.cursor = hover ? 'pointer' : 'default'; });
+cv.addEventListener('pointerdown', e => {
+  const hit = hitAt(e); hover = hit;
+  if (hit === dog) dog.excite(3.5);
+  else if (hit) openFile(hit);
+});
+cv.addEventListener('pointerleave', () => { hover = null; });
+
+/* ---------- character file ---------- */
+const scrim = document.getElementById('scrim'), fPortrait = document.getElementById('f-portrait'), pctx = fPortrait.getContext('2d');
+let fileOpen = null, fileRaf = 0, fileT0 = 0;
+function setText(id, text, placeholder) {
+  const el = document.getElementById(id);
+  el.textContent = text || placeholder || '';
+  el.classList.toggle('empty', !text && !!placeholder);
+}
+function openFile(person) {
+  const pr = person.profile || {};
+  document.getElementById('f-name').textContent = pr.name || person.name;
+  const role = document.getElementById('f-role'); role.textContent = pr.role || ''; role.hidden = !pr.role;
+  setText('f-power', pr.superpower, 'Not added yet');
+  const hob = document.getElementById('f-hobbies'); hob.textContent = '';
+  if (pr.hobbies && pr.hobbies.length) {
+    pr.hobbies.forEach((h, i) => {
+      if (i) { const d = document.createElement('span'); d.className = 'dot'; d.textContent = '\u00B7'; hob.appendChild(d); }
+      hob.appendChild(document.createTextNode(h));
+    });
+    hob.classList.remove('empty');
+  } else { hob.textContent = 'Not added yet'; hob.classList.add('empty'); }
+  setText('f-remarks', pr.remarks, 'Not added yet');
+  document.getElementById('f-bubble').textContent = pr.greeting || 'Hi!';
+  // portrait: the idle strip, so they blink and look around while the file is open
+  const strip = person.sheet && person.sheet.idle;
+  fileOpen = strip ? { strip, fw: strip.width / 6, fh: strip.height } : null;
+  if (fileOpen) { fPortrait.width = fileOpen.fw; fPortrait.height = fileOpen.fh; fileT0 = performance.now(); drawPortrait(); }
+  scrim.hidden = false;
+  document.getElementById('f-close').focus();
+}
+function portraitFrame(t) {
+  const c = t % 9;
+  if ((c > 2.0 && c < 2.15) || (c > 5.2 && c < 5.35)) return 2;
+  if (c > 3.0 && c < 4.2) return 3;
+  if (c > 4.6 && c < 5.0) return 1;
+  if (c > 6.5 && c < 7.6) return 4;
+  return 0;
+}
+function drawPortrait() {
+  if (scrim.hidden && fileRaf) { fileRaf = 0; return; }
+  if (fileOpen) {
+    pctx.clearRect(0, 0, fPortrait.width, fPortrait.height);
+    pctx.drawImage(fileOpen.strip, portraitFrame((performance.now() - fileT0) / 1000) * fileOpen.fw, 0, fileOpen.fw, fileOpen.fh, 0, 0, fileOpen.fw, fileOpen.fh);
+  }
+  fileRaf = requestAnimationFrame(drawPortrait);
+}
+function closeFile() { scrim.hidden = true; fileOpen = null; cancelAnimationFrame(fileRaf); fileRaf = 0; cv.focus && cv.focus(); }
+document.getElementById('f-close').addEventListener('click', closeFile);
+scrim.addEventListener('pointerdown', e => { if (e.target === scrim) closeFile(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !scrim.hidden) closeFile(); });
+</script>
